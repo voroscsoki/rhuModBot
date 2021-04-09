@@ -17,7 +17,7 @@ namespace rhuModBot
 
     public static class Global
     {
-        public static string ConfigFile = "Configuration.json";
+        public static string ConfigFile = "Configuration-reddit.json";
         public static Configuration Config = new Configuration();
         public static async Task<bool> SetupAsync()
         {
