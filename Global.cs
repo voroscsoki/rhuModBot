@@ -1,10 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.IO;
-using System.Net;
-using System.Net.Http;
-using System.Reflection;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace rhuModBot
 {
@@ -20,19 +17,18 @@ namespace rhuModBot
 
     public static class Global
     {
-        public static WebClient webclient = new WebClient();
-        public static HttpClient httpclient = new HttpClient();
         public static string ConfigFile = "Configuration.json";
         public static Configuration Config = new Configuration();
-        public static string execDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         public static async Task<bool> SetupAsync()
         {
             LoadConfig();
+            Console.WriteLine("setup complete");
             return true;
         }
         public static async Task StartAsync()
         {
-            var runreddit = RedditService.Initialise();
+            Console.WriteLine("initiated");
+            await RedditService.Initialise();
         }
         public static string GetTime()
         {
