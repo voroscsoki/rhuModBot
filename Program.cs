@@ -1,12 +1,23 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace rhuModBot
 {
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args) => new Program().RunAsync().GetAwaiter().GetResult();
+
+        public async Task RunAsync()
         {
-            Console.WriteLine("Hello World!");
+            if (await Global.SetupAsync())
+            {
+                await Global.StartAsync();
+                await Task.Delay(-1);
+            }
+            else
+            {
+                Console.WriteLine("Please have a look at the configuration file!");
+            }
         }
     }
 }
