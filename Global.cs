@@ -13,6 +13,7 @@ namespace rhuModBot
         public string RedditAppId { get; set; }
         public string RedditAppSecret { get; set; }
         public DateTime RedditTimeOverride { get; set; }
+        public DateTime LatestChecked { get; set; }
     }
 
     public static class Global
