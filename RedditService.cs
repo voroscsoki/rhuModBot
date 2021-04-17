@@ -1,10 +1,12 @@
 ﻿using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using RedditSharp;
 using RedditSharp.Things;
-using System.Threading;
-using System.Collections.Generic;
 
 namespace rhuModBot
 {
@@ -16,8 +18,8 @@ namespace rhuModBot
             var webAgent = new BotWebAgent(Global.Config.RedditUsername, Global.Config.RedditPW, Global.Config.RedditAppId, Global.Config.RedditAppSecret, "https://www.example.com");
             var reddit = new Reddit(webAgent, true);
             var subreddit = await reddit.GetSubredditAsync("/r/hungary");
-            var subreddit_posts = await subreddit.GetPosts(Subreddit.Sort.New, max: 250).ToListAsync();
-            subreddit_posts = subreddit_posts.OrderBy(p => p.CreatedUTC).ToList();
+            List<Post> subreddit_posts = await subreddit.GetPosts(Subreddit.Sort.New, max: 250).ToListAsync();
+            subreddit_posts = subreddit_posts.Where(p => p.CreatedUTC >= DateTime.UtcNow.AddDays(-1)).OrderBy(p => p.CreatedUTC).ToList();
             ListingStream<RedditSharp.Things.Post> postStream = subreddit.GetPosts(Subreddit.Sort.New).Stream();
             foreach (var x in subreddit_posts)
             {
@@ -26,23 +28,32 @@ namespace rhuModBot
             postStream.Subscribe(post => HandleNewPost(post, ref subreddit_posts));
             await postStream.Enumerate(canceltoken);
         }
-        public static void HandleNewPost(RedditSharp.Things.Post post, ref List<RedditSharp.Things.Post> subreddit_posts)
+        public static void HandleNewPost(Post post, ref List<Post> subreddit_posts)
         {
-            if (!subreddit_posts.Contains(post))
+            if (subreddit_posts.Where(p => p.Id == post.Id).Count() == 0)
             {
                 subreddit_posts.Add(post);
             }
-            var userfilter = subreddit_posts.Where(p => p.AuthorName == post.AuthorName && p.CreatedUTC >= post.CreatedUTC.Date && p.CreatedUTC <= post.CreatedUTC && p.CreatedUTC >= Global.Config.RedditTimeOverride);
-            if (userfilter.Count() > 5)
+            subreddit_posts = subreddit_posts.Where(p => p.CreatedUTC >= DateTime.UtcNow.AddDays(-1)).ToList();
+            if (post.CreatedUTC > Global.Config.LatestChecked)
             {
-                if (Global.Config.RedditTesting == 0)
+                List<Post> userfilter = new List<Post>();
+                userfilter = subreddit_posts.Where(p => p.AuthorName == post.AuthorName && p.CreatedUTC >= post.CreatedUTC.Date && p.CreatedUTC <= post.CreatedUTC && p.CreatedUTC >= Global.Config.RedditTimeOverride).ToList();
+                int limit = 5;
+                if (userfilter.Count() > limit)
                 {
-                    post.CommentAsync("Posztodat töröltük, mivel átlépted a 24 órás korlátod. Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
-                    post.DelAsync();
+                    List<Comment> comments = post.GetCommentsAsync().Result;
+                    if (Global.Config.RedditTesting == 0 && comments.Where(p => p.AuthorName == Global.Config.RedditUsername).Count() == 0)
+                    {
+                        post.CommentAsync($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
+                        post.RemoveAsync();
+                    }
+                    Console.WriteLine($"{post.AuthorName} {post.Id} azonosítójú posztja törölve lett. |{post.CreatedUTC} - {DateTime.UtcNow}|");
                 }
-                subreddit_posts.Remove(post);
-                Console.WriteLine($"{post.AuthorName} {post.Id} azonosítójú posztja törölve lett. |{post.CreatedUTC} - {DateTime.UtcNow}|");
+                Global.Config.LatestChecked = post.CreatedUTC;
+                File.WriteAllText(Global.ConfigFile, JsonConvert.SerializeObject(Global.Config, Formatting.Indented));
             }
+            return;
         }
     }
 }
