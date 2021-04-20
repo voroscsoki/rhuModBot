@@ -5,53 +5,68 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using RedditSharp;
-using RedditSharp.Things;
+using Reddit;
+using Reddit.Controllers;
+using Reddit.Controllers.EventArgs;
 
 namespace rhuModBot
 {
     public class RedditService
     {
+        public static List<Post> postList = new List<Post>();
+        public static DateTime startupTime = DateTime.UtcNow;
         public static async Task Initialise()
         {
-            CancellationTokenSource canceltokensource = new CancellationTokenSource(); CancellationToken canceltoken = canceltokensource.Token;
-            var webAgent = new BotWebAgent(Global.Config.RedditUsername, Global.Config.RedditPW, Global.Config.RedditAppId, Global.Config.RedditAppSecret, "https://www.example.com");
-            var reddit = new Reddit(webAgent, true);
-            var subreddit = await reddit.GetSubredditAsync("/r/hungary");
-            List<Post> subreddit_posts = await subreddit.GetPosts(Subreddit.Sort.New, max: 250).ToListAsync();
-            subreddit_posts = subreddit_posts.Where(p => p.CreatedUTC >= DateTime.UtcNow.AddDays(-1)).OrderBy(p => p.CreatedUTC).ToList();
-            ListingStream<RedditSharp.Things.Post> postStream = subreddit.GetPosts(Subreddit.Sort.New).Stream();
-            foreach (var x in subreddit_posts)
+            var reddit = new RedditClient(appId: Global.Config.RedditAppId, appSecret: Global.Config.RedditAppSecret, refreshToken: Global.Config.RefreshToken);
+            string subredditName = "hungary";
+            Console.WriteLine($"{DateTime.Now} - Sikeres csatlakozás\n{reddit.Account.Me.Name} | r/{subredditName}");
+            var hungary = reddit.Subreddit(subredditName);
+            postList = hungary.Posts.GetNew(limit: 100).OrderBy(p => p.Created).ToList();
+            for (int i = 0; i < 1; i++)
             {
-                HandleNewPost(x, ref subreddit_posts);
+                var x = hungary.Posts.GetNew(limit: 100, after: postList.OrderBy(p => p.Created).First().Fullname);
+                foreach (var y in x)
+                {
+                    postList.Add(y);
+                }
             }
-            postStream.Subscribe(post => HandleNewPost(post, ref subreddit_posts));
-            await postStream.Enumerate(canceltoken);
+            postList = postList.Where(p => p.Created >= DateTime.Now.Date.AddHours(-2)).OrderBy(p => p.Created).ToList();
+            foreach (var post in postList)
+            {
+                HandleNewPost(post, ref postList, true);
+            }
+            hungary.Posts.NewUpdated += C_NewPostsUpdated;
+            hungary.Posts.MonitorNew();
         }
-        public static void HandleNewPost(Post post, ref List<Post> subreddit_posts)
+        public static void C_NewPostsUpdated(object sender, PostsUpdateEventArgs e)
         {
-            if (subreddit_posts.Where(p => p.Id == post.Id).Count() == 0)
+            foreach (var post in e.Added)
             {
-                subreddit_posts.Add(post);
+                HandleNewPost(post, ref postList, false);
             }
-            subreddit_posts = subreddit_posts.Where(p => p.CreatedUTC >= DateTime.UtcNow.AddDays(-1)).ToList();
-            if (post.CreatedUTC > Global.Config.LatestChecked)
+        }
+        public static void HandleNewPost(Post post, ref List<Post> postList, bool isStartup)
+        {
+            if (postList.Where(p => p.Id == post.Id).Count() == 0)
             {
+                postList.Add(post);
+            }
+            if (post.Created >= startupTime || isStartup == true)
+            {
+                postList = postList.Where(p => p.Created >= DateTime.Now.Date.AddHours(-2)).OrderBy(p => p.Created).ToList();
                 List<Post> userfilter = new List<Post>();
-                userfilter = subreddit_posts.Where(p => p.AuthorName == post.AuthorName && p.CreatedUTC >= post.CreatedUTC.Date && p.CreatedUTC <= post.CreatedUTC && p.CreatedUTC >= Global.Config.RedditTimeOverride).ToList();
+                userfilter = postList.Where(p => p.Author == post.Author && p.Created <= post.Created && p.Created >= Global.Config.RedditTimeOverride).ToList();
                 int limit = 5;
                 if (userfilter.Count() > limit)
                 {
-                    List<Comment> comments = post.GetCommentsAsync().Result;
-                    if (Global.Config.RedditTesting == 0 && comments.Where(p => p.AuthorName == Global.Config.RedditUsername).Count() == 0)
+                    List<Comment> comments = post.Comments.GetComments();
+                    if (Global.Config.RedditTesting == 0 && !post.Removed && comments.Where(p => p.Author == Global.Config.RedditUsername).Count() == 0)
                     {
-                        post.CommentAsync($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
+                        post.Comment($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
                         post.RemoveAsync();
                     }
-                    Console.WriteLine($"{post.AuthorName} {post.Id} azonosítójú posztja törölve lett. |{post.CreatedUTC} - {DateTime.UtcNow}|");
+                    Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.ToLocalTime()} - {DateTime.Now}|");
                 }
-                Global.Config.LatestChecked = post.CreatedUTC;
-                File.WriteAllText(Global.ConfigFile, JsonConvert.SerializeObject(Global.Config, Formatting.Indented));
             }
             return;
         }
