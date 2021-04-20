@@ -15,11 +15,12 @@ namespace rhuModBot
     {
         public static List<Post> postList = new List<Post>();
         public static DateTime startupTime = DateTime.UtcNow;
+        public static int TimeDiff = 2;
         public static async Task Initialise()
         {
             var reddit = new RedditClient(appId: Global.Config.RedditAppId, appSecret: Global.Config.RedditAppSecret, refreshToken: Global.Config.RefreshToken);
             string subredditName = "hungary";
-            Console.WriteLine($"{DateTime.Now} - Sikeres csatlakozás\n{reddit.Account.Me.Name} | r/{subredditName}");
+            Console.WriteLine($"{DateTime.UtcNow.AddHours(TimeDiff)} - Sikeres csatlakozás\n{reddit.Account.Me.Name} | r/{subredditName}");
             var hungary = reddit.Subreddit(subredditName);
             postList = hungary.Posts.GetNew(limit: 100).OrderBy(p => p.Created).ToList();
             for (int i = 0; i < 1; i++)
@@ -30,7 +31,7 @@ namespace rhuModBot
                     postList.Add(y);
                 }
             }
-            postList = postList.Where(p => p.Created >= DateTime.Now.Date.AddHours(-2)).OrderBy(p => p.Created).ToList();
+            postList = postList.Where(p => p.Created >= DateTime.UtcNow.AddHours(TimeDiff).Date.AddHours(-TimeDiff)).OrderBy(p => p.Created).ToList();
             foreach (var post in postList)
             {
                 HandleNewPost(post, ref postList, true);
@@ -53,7 +54,7 @@ namespace rhuModBot
             }
             if (post.Created >= startupTime || isStartup == true)
             {
-                postList = postList.Where(p => p.Created >= DateTime.Now.Date.AddHours(-2)).OrderBy(p => p.Created).ToList();
+                postList = postList.Where(p => p.Created >= DateTime.UtcNow.AddHours(TimeDiff).Date.AddHours(-TimeDiff)).OrderBy(p => p.Created).ToList();
                 List<Post> userfilter = new List<Post>();
                 userfilter = postList.Where(p => p.Author == post.Author && p.Created <= post.Created && p.Created >= Global.Config.RedditTimeOverride).ToList();
                 int limit = 5;
@@ -65,7 +66,7 @@ namespace rhuModBot
                         post.Comment($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
                         post.RemoveAsync();
                     }
-                    Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.ToLocalTime()} - {DateTime.Now}|");
+                    Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.ToLocalTime()} - {DateTime.UtcNow.AddHours(TimeDiff)}|");
                 }
             }
             return;
