@@ -63,7 +63,7 @@ namespace rhuModBot
                     List<Comment> comments = post.Comments.GetComments();
                     if (Global.Config.RedditTesting == 0 && !post.Removed && comments.Where(p => p.Author == Global.Config.RedditUsername).Count() == 0)
                     {
-                        post.Comment($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
+                        post.Reply($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
                         post.RemoveAsync();
                     }
                     Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.ToLocalTime()} - {DateTime.UtcNow.AddHours(TimeDiff)}|");
