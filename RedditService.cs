@@ -66,7 +66,7 @@ namespace rhuModBot
                         post.Reply($"Posztodat töröltük, mivel átlépted a napi korlátot ({limit} poszt). Próbáld újra később!\n\n^(Én csak egy bot vagyok, az intézkedés automatikusan lett végrehajtva.)");
                         post.RemoveAsync();
                     }
-                    Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.ToLocalTime()} - {DateTime.UtcNow.AddHours(TimeDiff)}|");
+                    Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.AddHours(TimeDiff)} - {DateTime.UtcNow.AddHours(TimeDiff)}|");
                 }
             }
             return;
