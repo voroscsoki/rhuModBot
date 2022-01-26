@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Reddit;
 using Reddit.Controllers;
 using Reddit.Controllers.EventArgs;
 using HtmlAgilityPack;
-using Reddit.Inputs.LinksAndComments;
 
 namespace rhuModBot
 {
