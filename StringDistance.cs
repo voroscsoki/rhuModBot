@@ -64,5 +64,15 @@ namespace rhuModBot
             int stepsToSame = ComputeLevenshteinDistance(source, target);
             return (1.0 - ((double)stepsToSame / (double)Math.Max(source.Length, target.Length)));
         }
+        public static string RemoveNonUTF8(string source)
+        {
+            if (string.IsNullOrEmpty(source))
+                return null;
+            else
+            {
+                byte[] bytes = Encoding.Default.GetBytes(source);
+                return Encoding.UTF8.GetString(bytes);
+            }
+        }
     }
 }
