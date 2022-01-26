@@ -74,7 +74,7 @@ namespace rhuModBot
                 }
             }
             //lexical distance
-            string? linkedSite = null; string? title = null;
+            string? linkedSite = null; string? title = null; string? titleUsedByPost = null;
             if (!post.Listing.IsSelf)
                 linkedSite = ((LinkPost)post).URL;
             else if(Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
@@ -86,9 +86,11 @@ namespace rhuModBot
                 {
                     var document = webGet.Load(linkedSite);
                     var testForExceptions = new Uri(linkedSite, UriKind.Absolute);
-                    if (!Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority))){
+                    if (!(Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority)))){
                         title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
-                        similarity = StringDistance.CalculateSimilarity(post.Title.ToLower(), title.ToLower());
+                        title = StringDistance.RemoveNonUTF8(title).ToLower();
+                        titleUsedByPost = StringDistance.RemoveNonUTF8(post.Title).ToLower();
+                        similarity = StringDistance.CalculateSimilarity(titleUsedByPost, title);
                     }
                 }
                 catch (Exception)
@@ -98,11 +100,11 @@ namespace rhuModBot
                 }
                 
                 Console.WriteLine($"{post.Created.ToUniversalTime()} (UTC) {post.Id} - cím ellenőrzés:\nsub: {post.Subreddit}\nposztbeli oldal címe: {title}\nposzt címe: {post.Title}\nhasonlóság: {similarity*100}");
-                if (similarity < 0.5)
+                if (similarity < Global.Config.Threshold && title != null && titleUsedByPost != null)
                 {
                     post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1-similarity) * 100)}%)", "", "", "");
                     Console.WriteLine($"{post.Id} report queue-ba küldve");
-                }
+                }   
                 Console.WriteLine("\n");
             }
             return;
