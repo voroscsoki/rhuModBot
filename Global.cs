@@ -14,6 +14,7 @@ namespace rhuModBot
         public string RedditAppSecret { get; set; }
         public DateTime RedditTimeOverride { get; set; }
         public string RefreshToken { get; set; }
+        public string[] ArticleTitleExceptions { get; set; }
     }
 
     public static class Global
