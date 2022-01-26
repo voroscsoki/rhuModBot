@@ -8,6 +8,8 @@ using Newtonsoft.Json;
 using Reddit;
 using Reddit.Controllers;
 using Reddit.Controllers.EventArgs;
+using HtmlAgilityPack;
+using Reddit.Inputs.LinksAndComments;
 
 namespace rhuModBot
 {
@@ -16,10 +18,11 @@ namespace rhuModBot
         public static List<Post> postList = new List<Post>();
         public static DateTime startupTime = DateTime.UtcNow;
         public static int TimeDiff = 2;
+        public static string subredditName = "hungary";
+        public static HtmlWeb webGet = new HtmlWeb();
         public static async Task Initialise()
         {
             var reddit = new RedditClient(appId: Global.Config.RedditAppId, appSecret: Global.Config.RedditAppSecret, refreshToken: Global.Config.RefreshToken);
-            string subredditName = "hungary";
             Console.WriteLine($"{DateTime.UtcNow.AddHours(TimeDiff)} - Sikeres csatlakozás\n{reddit.Account.Me.Name} | r/{subredditName}");
             var hungary = reddit.Subreddit(subredditName);
             postList = hungary.Posts.GetNew(limit: 100).OrderBy(p => p.Created).ToList();
@@ -52,6 +55,7 @@ namespace rhuModBot
             {
                 postList.Add(post);
             }
+            //post limit
             if (post.Created >= startupTime || isStartup == true)
             {
                 postList = postList.Where(p => p.Created >= DateTime.UtcNow.AddHours(TimeDiff).Date.AddHours(-TimeDiff)).OrderBy(p => p.Created).ToList();
@@ -68,6 +72,38 @@ namespace rhuModBot
                     }
                     Console.WriteLine($"{post.Author} {post.Id} azonosítójú posztja törölve lett. |{post.Created.AddHours(TimeDiff)} - {DateTime.UtcNow.AddHours(TimeDiff)}|");
                 }
+            }
+            //lexical distance
+            string? linkedSite = null; string? title = null;
+            if (!post.Listing.IsSelf)
+                linkedSite = ((LinkPost)post).URL;
+            else if(Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
+                linkedSite = ((SelfPost)post).SelfText;
+            double similarity = 1;
+            if(linkedSite != null)
+            {
+                try
+                {
+                    var document = webGet.Load(linkedSite);
+                    var testForExceptions = new Uri(linkedSite, UriKind.Absolute);
+                    if (!Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority))){
+                        title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
+                        similarity = StringDistance.CalculateSimilarity(post.Title.ToLower(), title.ToLower());
+                    }
+                }
+                catch (Exception)
+                {
+                    //these are image posts (imgur or i.reddit), it's not needed to check them anyway
+                    return;
+                }
+                
+                Console.WriteLine($"{post.Created.ToUniversalTime()} (UTC) {post.Id} - cím ellenőrzés:\nsub: {post.Subreddit}\nposztbeli oldal címe: {title}\nposzt címe: {post.Title}\nhasonlóság: {similarity*100}");
+                if (similarity < 0.5)
+                {
+                    post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1-similarity) * 100)}%)", "", "", "");
+                    Console.WriteLine($"{post.Id} report queue-ba küldve");
+                }
+                Console.WriteLine("\n");
             }
             return;
         }
