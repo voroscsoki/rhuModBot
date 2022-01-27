@@ -15,6 +15,7 @@ namespace rhuModBot
         public DateTime RedditTimeOverride { get; set; }
         public string RefreshToken { get; set; }
         public string[] ArticleTitleExceptions { get; set; }
+        public string[] PardonedUsers { get; set; }
         public double Threshold { get; set; }
     }
 

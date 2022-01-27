@@ -80,7 +80,7 @@ namespace rhuModBot
             else if(Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
                 linkedSite = ((SelfPost)post).SelfText;
             double similarity = 1;
-            if(linkedSite != null)
+            if (linkedSite != null && !Global.Config.PardonedUsers.Contains(post.Author))
             {
                 try
                 {
