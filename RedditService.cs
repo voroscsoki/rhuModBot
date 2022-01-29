@@ -88,9 +88,9 @@ namespace rhuModBot
                     var testForExceptions = new Uri(linkedSite, UriKind.Absolute);
                     if (!(Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority)))){
                         title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
-                        title = StringDistance.RemoveNonUTF8(title).ToLower();
-                        titleUsedByPost = StringDistance.RemoveNonUTF8(post.Title).ToLower();
-                        similarity = StringDistance.CalculateSimilarity(titleUsedByPost, title);
+                        title = StringDistance.RemoveNonUTF8(title);
+                        titleUsedByPost = StringDistance.RemoveNonUTF8(post.Title);
+                        similarity = StringDistance.CalculateSimilarity(titleUsedByPost.ToLower(), title.ToLower());
                     }
                 }
                 catch (Exception)
