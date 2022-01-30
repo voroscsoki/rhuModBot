@@ -74,39 +74,42 @@ namespace rhuModBot
                 }
             }
             //lexical distance
-            string? linkedSite = null; string? title = null; string? titleUsedByPost = null;
+            string? linkedSite = null; string? articleTitle = null; string? titleUsedByPost = null;
             if (!post.Listing.IsSelf)
                 linkedSite = ((LinkPost)post).URL;
             else if(Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
                 linkedSite = ((SelfPost)post).SelfText;
             double similarity = 1;
-            if (linkedSite != null && !Global.Config.PardonedUsers.Contains(post.Author))
+            bool isPardoned = Global.Config.PardonedUsers.Contains(post.Author);
+            bool isReported = false, domainIgnored = false;
+            if (linkedSite != null && !isPardoned)
             {
                 try
                 {
                     var document = webGet.Load(linkedSite);
                     var testForExceptions = new Uri(linkedSite, UriKind.Absolute);
-                    if (!(Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority)))){
-                        title = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
-                        title = StringDistance.RemoveNonUTF8(title);
+                    domainIgnored = Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority));
+                    if (!domainIgnored){
+                        articleTitle = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
+                        articleTitle = StringDistance.RemoveNonUTF8(articleTitle);
                         titleUsedByPost = StringDistance.RemoveNonUTF8(post.Title);
-                        similarity = StringDistance.CalculateSimilarity(titleUsedByPost.ToLower(), title.ToLower());
+                        similarity = StringDistance.CalculateSimilarity(titleUsedByPost.ToLower(), articleTitle.ToLower());
                     }
                 }
                 catch (Exception)
-                {
-                    //these are image posts (imgur or i.reddit), it's not needed to check them anyway
-                    return;
-                }
-                
-                Console.WriteLine($"{post.Created.ToUniversalTime()} (UTC) {post.Id} - cím ellenőrzés:\nsub: {post.Subreddit}\nposztbeli oldal címe: {title}\nposzt címe: {post.Title}\nhasonlóság: {similarity*100}");
-                if (similarity < Global.Config.Threshold && title != null && titleUsedByPost != null)
+                { }
+                if (articleTitle == null)
+                    similarity = 0;
+                Console.WriteLine($"{post.Created.ToUniversalTime()} (UTC) {post.Id} - cím ellenőrzés:\nsub: {post.Subreddit}\nposztbeli oldal címe: {articleTitle}\nposzt címe: {post.Title}\nhasonlóság: {similarity*100}");
+                isReported = similarity < Global.Config.Threshold && !domainIgnored;
+                if (isReported && articleTitle != null && titleUsedByPost != null)
                 {
                     post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1-similarity) * 100)}%)", "", "", "");
                     Console.WriteLine($"{post.Id} report queue-ba küldve");
-                }   
+                }
                 Console.WriteLine("\n");
             }
+            DbOperations.addPost(new DbPost(post.Id, post.Created, linkedSite, post.Title, articleTitle, similarity, isPardoned, domainIgnored, isReported));
             return;
         }
     }
