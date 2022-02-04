@@ -88,7 +88,7 @@ namespace rhuModBot
                 {
                     var document = webGet.Load(linkedSite);
                     var testForExceptions = new Uri(linkedSite, UriKind.Absolute);
-                    domainIgnored = Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority));
+                    domainIgnored = Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority).Replace(testForExceptions.GetLeftPart(UriPartial.Scheme), ""));
                     if (!domainIgnored){
                         articleTitle = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
                         articleTitle = StringDistance.RemoveNonUTF8(articleTitle);
