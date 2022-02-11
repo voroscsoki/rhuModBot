@@ -10,6 +10,7 @@ using Reddit.Controllers;
 using Reddit.Controllers.EventArgs;
 using HtmlAgilityPack;
 using Reddit.Inputs.LinksAndComments;
+using System.Text.RegularExpressions;
 
 namespace rhuModBot
 {
@@ -77,8 +78,7 @@ namespace rhuModBot
             string? linkedSite = null; string? articleTitle = null; string? titleUsedByPost = null;
             if (!post.Listing.IsSelf)
                 linkedSite = ((LinkPost)post).URL;
-            else if(Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
-                linkedSite = ((SelfPost)post).SelfText;
+            else linkedSite = RegexFromContent((SelfPost)post);
             double similarity = 1;
             bool isPardoned = Global.Config.PardonedUsers.Contains(post.Author);
             bool isReported = false, domainIgnored = false;
@@ -89,10 +89,10 @@ namespace rhuModBot
                     var document = webGet.Load(linkedSite);
                     var testForExceptions = new Uri(linkedSite, UriKind.Absolute);
                     domainIgnored = Global.Config.ArticleTitleExceptions.Contains(testForExceptions.GetLeftPart(UriPartial.Authority).Replace(testForExceptions.GetLeftPart(UriPartial.Scheme), ""));
-                    if (!domainIgnored){
-                        articleTitle = document.DocumentNode.SelectSingleNode("html/head/title").InnerText;
-                        articleTitle = StringDistance.RemoveNonUTF8(articleTitle);
+                    if (!domainIgnored)
+                    {
                         titleUsedByPost = StringDistance.RemoveNonUTF8(post.Title);
+                        articleTitle = System.Net.WebUtility.HtmlDecode(GetWebsiteTitle(document, titleUsedByPost));
                         similarity = StringDistance.CalculateSimilarity(titleUsedByPost.ToLower(), articleTitle.ToLower());
                     }
                 }
@@ -100,11 +100,11 @@ namespace rhuModBot
                 { }
                 if (articleTitle == null)
                     similarity = 0;
-                Console.WriteLine($"{post.Created.ToUniversalTime()} (UTC) {post.Id} - cím ellenőrzés:\nsub: {post.Subreddit}\nposztbeli oldal címe: {articleTitle}\nposzt címe: {post.Title}\nhasonlóság: {similarity*100}");
+                Console.WriteLine($"{post.Created.ToUniversalTime()} (UTC) {post.Id} - cím ellenőrzés:\nsub: {post.Subreddit}\nposztbeli oldal címe: {articleTitle}\nposzt címe: {post.Title}\nhasonlóság: {similarity * 100}");
                 isReported = similarity < Global.Config.Threshold && !domainIgnored;
                 if (isReported && articleTitle != null && titleUsedByPost != null)
                 {
-                    post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1-similarity) * 100)}%)", "", "", "");
+                    post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1 - similarity) * 100)}%)", "", "", "");
                     Console.WriteLine($"{post.Id} report queue-ba küldve");
                 }
                 Console.WriteLine("\n");
@@ -112,5 +112,36 @@ namespace rhuModBot
             DbOperations.addPost(new DbPost(post.Id, post.Created, linkedSite, post.Title, articleTitle, similarity, isPardoned, domainIgnored, isReported));
             return;
         }
+        public static string? GetWebsiteTitle(HtmlDocument doc, string compareTo)
+        {
+            string? result1 = null, result2 = null;
+            try
+            {
+                result1 = StringDistance.RemoveNonUTF8(doc.DocumentNode.SelectSingleNode("html/head/title").InnerText);
+                var titleNode = doc.DocumentNode.SelectNodes("//meta").First(p => p.Attributes.Where(q => q.Value == "og:title").Count() > 0);
+                result2 = StringDistance.RemoveNonUTF8(titleNode.Attributes.First(p => p.Name == "content").Value);
+            }
+            catch (Exception)
+            { }
+            if (result1 != null && result2 != null)
+            {
+                return StringDistance.CalculateSimilarity(compareTo.ToLower(), result1.ToLower()) >
+                    StringDistance.CalculateSimilarity(compareTo.ToLower(), result2.ToLower()) ? result1 : result2;
+            }
+            else return result1;
+        }
+        public static string? RegexFromContent(SelfPost post)
+        {
+            if (Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
+                return post.Listing.SelfText;
+            string regexMatch = @"\[(\S)+\]\((\S)+\)";
+            string regexMatchAgain = @"\((\S)+\)";
+            var found = Regex.Match(post.Listing.SelfText, regexMatch);
+            var found2 = Regex.Match(found.Value, regexMatchAgain);
+            if (found2.Value != null)
+                return found2.Value;
+            return null;
+        }
+        
     }
 }
