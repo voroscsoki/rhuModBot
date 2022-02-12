@@ -78,7 +78,17 @@ namespace rhuModBot
             string? linkedSite = null; string? articleTitle = null; string? titleUsedByPost = null;
             if (!post.Listing.IsSelf)
                 linkedSite = ((LinkPost)post).URL;
-            else linkedSite = RegexFromContent((SelfPost)post);
+            else
+            {
+                SelfPost textPost = (SelfPost)post;
+                string intermediary = RegexFromContent(textPost);
+                if ((double)intermediary.Length / textPost.Listing.SelfText.Length > 0.95)
+                {
+                    string regexMatchJustURL = @"\((\S)+\)";
+                    var found = Regex.Match(intermediary, regexMatchJustURL);
+                    linkedSite = found.Value.Replace("(", "").Replace(")", "");
+                }
+            }
             double similarity = 1;
             bool isPardoned = Global.Config.PardonedUsers.Contains(post.Author);
             bool isReported = false, domainIgnored = false;
@@ -135,11 +145,9 @@ namespace rhuModBot
             if (Uri.IsWellFormedUriString(post.Listing.SelfText, UriKind.Absolute))
                 return post.Listing.SelfText;
             string regexMatch = @"\[(\S)+\]\((\S)+\)";
-            string regexMatchAgain = @"\((\S)+\)";
             var found = Regex.Match(post.Listing.SelfText, regexMatch);
-            var found2 = Regex.Match(found.Value, regexMatchAgain);
-            if (found2.Value != null)
-                return found2.Value.Replace("(", "").Replace(")", "");
+            if (found.Value != null)
+                return found.Value;
             return null;
         }
         
