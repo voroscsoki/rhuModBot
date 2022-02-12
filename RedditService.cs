@@ -139,7 +139,7 @@ namespace rhuModBot
             var found = Regex.Match(post.Listing.SelfText, regexMatch);
             var found2 = Regex.Match(found.Value, regexMatchAgain);
             if (found2.Value != null)
-                return found2.Value;
+                return found2.Value.Replace("(", "").Replace(")", "");
             return null;
         }
         
