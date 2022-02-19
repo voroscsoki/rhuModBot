@@ -60,5 +60,12 @@ namespace rhuModBot
                 db.SaveChanges();
             }
         }
+        public static List<DbPost> findRecentURL(string url, string excludeID)
+        {
+            using (var db = new PostContext())
+            {
+                return db.Posts.Where(p => p.linkedArticle == url && p.id != excludeID && p.time >= DateTime.Now.AddDays(-3)).ToList();
+            }
+        }
     }
 }

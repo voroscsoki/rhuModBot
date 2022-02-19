@@ -21,9 +21,10 @@ namespace rhuModBot
         public static int TimeDiff = 2;
         public static string subredditName = "hungary";
         public static HtmlWeb webGet = new HtmlWeb();
+        public static RedditClient reddit;
         public static async Task Initialise()
         {
-            var reddit = new RedditClient(appId: Global.Config.RedditAppId, appSecret: Global.Config.RedditAppSecret, refreshToken: Global.Config.RefreshToken);
+            reddit = new RedditClient(appId: Global.Config.RedditAppId, appSecret: Global.Config.RedditAppSecret, refreshToken: Global.Config.RefreshToken);
             Console.WriteLine($"{DateTime.UtcNow.AddHours(TimeDiff)} - Sikeres csatlakozás\n{reddit.Account.Me.Name} | r/{subredditName}");
             var hungary = reddit.Subreddit(subredditName);
             postList = hungary.Posts.GetNew(limit: 100).OrderBy(p => p.Created).ToList();
@@ -92,6 +93,7 @@ namespace rhuModBot
             double similarity = 1;
             bool isPardoned = Global.Config.PardonedUsers.Contains(post.Author);
             bool isReported = false, domainIgnored = false;
+            linkedSite = linkedSite.Replace("www.", "").Replace("https://m.", "").Replace("http://m.", "");
             if (linkedSite != null && !isPardoned)
             {
                 try
@@ -115,7 +117,12 @@ namespace rhuModBot
                 if (isReported && articleTitle != null && titleUsedByPost != null)
                 {
                     post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1 - similarity) * 100)}%)", "", "", "");
-                    Console.WriteLine($"{post.Id} report queue-ba küldve");
+                }
+                var matches = DbOperations.findRecentURL(linkedSite, post.Id);
+                if (matches.Count > 0 && articleTitle != null && titleUsedByPost != null && !reddit.Post($"t3_{matches.First().id}").Removed)
+                {
+                    post.Report("", "", "", false, "", $"duplikált? https://www.reddit.com/r/hungary/comments/{matches.First().id}", "", "", "");
+                    isReported = true;
                 }
                 Console.WriteLine("\n");
             }
@@ -128,10 +135,15 @@ namespace rhuModBot
             try
             {
                 result1 = StringDistance.RemoveNonUTF8(doc.DocumentNode.SelectSingleNode("html/head/title").InnerText);
+            }
+            catch
+            { }
+            try
+            {
                 var titleNode = doc.DocumentNode.SelectNodes("//meta").First(p => p.Attributes.Where(q => q.Value == "og:title").Count() > 0);
                 result2 = StringDistance.RemoveNonUTF8(titleNode.Attributes.First(p => p.Name == "content").Value);
             }
-            catch (Exception)
+            catch
             { }
             if (result1 != null && result2 != null)
             {
