@@ -93,9 +93,9 @@ namespace rhuModBot
             double similarity = 1;
             bool isPardoned = Global.Config.PardonedUsers.Contains(post.Author);
             bool isReported = false, domainIgnored = false;
-            linkedSite = linkedSite.Replace("www.", "").Replace("https://m.", "https://").Replace("http://m.", "http://");
             if (linkedSite != null && !isPardoned)
             {
+                linkedSite = linkedSite.Replace("www.", "").Replace("https://m.", "https://").Replace("http://m.", "http://");
                 try
                 {
                     var document = webGet.Load(linkedSite);
