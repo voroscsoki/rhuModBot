@@ -119,7 +119,7 @@ namespace rhuModBot
                     post.Report("", "", "", false, "", $"szerkesztett cím? ({(int)((1 - similarity) * 100)}%)", "", "", "");
                 }
                 var matches = DbOperations.findRecentURL(linkedSite, post.Id);
-                if (matches.Count > 0 && articleTitle != null && titleUsedByPost != null && !reddit.Post($"t3_{matches.First().id}").Removed)
+                if (matches.Count > 0 && articleTitle != null && titleUsedByPost != null)
                 {
                     post.Report("", "", "", false, "", $"duplikált? https://www.reddit.com/r/hungary/comments/{matches.First().id}", "", "", "");
                     isReported = true;

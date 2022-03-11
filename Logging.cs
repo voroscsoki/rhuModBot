@@ -64,7 +64,13 @@ namespace rhuModBot
         {
             using (var db = new PostContext())
             {
-                return db.Posts.Where(p => p.linkedArticle == url && p.id != excludeID && p.time >= DateTime.Now.AddDays(-3)).ToList();
+                var res =  db.Posts.Where(p => p.linkedArticle == url && p.id != excludeID && p.time >= DateTime.Now.AddDays(-3)).ToList();
+                foreach (var item in res)
+                {
+                    if (RedditService.reddit.Post($"t3_{item.id}").Removed)
+                        res.Remove(item);
+                }
+                return res;
             }
         }
     }
