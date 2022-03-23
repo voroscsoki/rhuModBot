@@ -5,7 +5,10 @@ namespace rhuModBot
 {
     public class Program
     {
-        public static void Main(string[] args) => new Program().RunAsync().GetAwaiter().GetResult();
+        public static void Main(string[] args)
+        {
+            new Program().RunAsync().GetAwaiter().GetResult();
+        }
 
         public async Task RunAsync()
         {

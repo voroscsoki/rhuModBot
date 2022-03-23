@@ -13,6 +13,10 @@ namespace rhuModBot
         public string RedditAppId { get; set; }
         public string RedditAppSecret { get; set; }
         public DateTime RedditTimeOverride { get; set; }
+        public string RefreshToken { get; set; }
+        public string[] ArticleTitleExceptions { get; set; }
+        public string[] PardonedUsers { get; set; }
+        public double Threshold { get; set; }
     }
 
     public static class Global
@@ -22,12 +26,10 @@ namespace rhuModBot
         public static async Task<bool> SetupAsync()
         {
             LoadConfig();
-            Console.WriteLine("setup complete");
             return true;
         }
         public static async Task StartAsync()
         {
-            Console.WriteLine("initiated");
             await RedditService.Initialise();
         }
         public static string GetTime()
